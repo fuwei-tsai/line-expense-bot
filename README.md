@@ -49,6 +49,7 @@ cd line-expense-bot
 pip install -r requirements.txt
 ```
 3. Configure Environment Variables:
+
 Create a .env file in the root directory and add your credentials (Ensure this file is in your .gitignore):
 ```bash
 LINE_CHANNEL_ACCESS_TOKEN=your_line_token
