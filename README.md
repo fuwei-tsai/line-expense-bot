@@ -55,8 +55,9 @@ The prototype is fully functional and deployed using a microservices architectur
 3. **LLM Processing:** Google Gemini API extracts and standardizes the entities.
 4. **Cloud Storage:** **TiDB Cloud (MySQL)** securely stores the structured transactions.
 
-graph TD
-    %% 定義樣式，讓圖表更美觀
+```mermaid
+graph TD;
+    %% Define styles
     classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef line fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
     classDef agent fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5;
@@ -64,57 +65,56 @@ graph TD
     classDef db fill:#ede7f6,stroke:#311b92,stroke-width:2px;
     classDef dashboard fill:#fff3e0,stroke:#e65100,stroke-width:2px;
 
-    %% 定義節點 (Nodes)
-    UserNode[("👤 使用者 User\n(LINE App)")]:::user
-    LineApiNode[("💬 LINE Messaging API\n(網關 Gateway)")]:::line
+    %% Define Nodes
+    UserNode[("👤 User\n(LINE App)")]:::user
+    LineApiNode[("💬 LINE Messaging API\n(Gateway)")]:::line
     
-    subgraph Agentic_Workflow [🧠 代理人核心邏輯 Agent Orchestrator (Vercel/Flask)]
-        WebhookNode("接收請求 & 驗證\nExtract Raw Text"):::agent
-        PromptEngNode("提示詞工程\nSystem Prompt / Few-shot"):::agent
-        LogicNode{"數據驗證 &\n統計運算 (Z-score)"}:::agent
-        SqlNode("執行 SQL 指令\nInsert/Select"):::agent
-        ReplyNode("組合回覆訊息\nFormat Response"):::agent
+    subgraph Agentic_Workflow ["🧠 Agent Orchestrator (Vercel/Flask)"]
+        WebhookNode("Receive Request & Verify\nExtract Raw Text"):::agent
+        PromptEngNode("Prompt Engineering\nSystem Prompt / Few-shot"):::agent
+        LogicNode{"Data Validation &\nStatistical Calc (Z-score)"}:::agent
+        SqlNode("Execute SQL Commands\nInsert/Select"):::agent
+        ReplyNode("Compose Reply Message\nFormat Response"):::agent
     end
 
-    GeminiNode[("🤖 Google Gemini AI\n(NLP 解析 / 實體擷取)")]:::ai
-    TiDbNode[("🗄️ TiDB Cloud DB\n(MySQL 分散式儲存)")]:::db
-    StreamlitNode[("📊 數據看板\n(Streamlit Cloud)")]:::dashboard
+    GeminiNode[("🤖 Google Gemini AI\n(NLP Parsing / Entity Extraction)")]:::ai
+    TiDbNode[("🗄️ TiDB Cloud DB\n(MySQL Distributed Storage)")]:::db
+    StreamlitNode[("📊 Data Dashboard\n(Streamlit Cloud)")]:::dashboard
 
-    %% 定義連線流程 (Edges)
+    %% Define Edges
     
-    %% 輸入資料流
-    UserNode -->|1. 發送自然語言訊息\n(e.g., 今天晚餐 20 CAD)| LineApiNode
-    LineApiNode -->|2. Webhook 轉發 (POST Request)| WebhookNode
+    %% Input Data Flow
+    UserNode -->|"1. Send Natural Language Message\n(e.g., Dinner 20 CAD today)"| LineApiNode
+    LineApiNode -->|"2. Webhook Forwarding (POST Request)"| WebhookNode
     
-    %% AI 解析流
-    WebhookNode -->|3. 傳送原始文本 + 提示詞| GeminiNode
-    GeminiNode -->|4. 回傳結構化 JSON 資料| LogicNode
+    %% AI Parsing Flow
+    WebhookNode -->|"3. Send Raw Text + Prompt"| GeminiNode
+    GeminiNode -->|"4. Return Structured JSON Data"| LogicNode
     
-    %% 資料庫交互流
-    LogicNode -->|5a. 資料庫寫入 (正常交易)| SqlNode
-    LogicNode -.->|5b. 資料庫讀取 (歷史平均值)| SqlNode
-    SqlNode ==>|6. SQL 交互| TiDbNode
+    %% Database Interaction Flow
+    LogicNode -->|"5a. Database Write (Normal Transaction)"| SqlNode
+    LogicNode -.->|"5b. Database Read (Historical Average)"| SqlNode
+    SqlNode ==>|"6. SQL Interaction"| TiDbNode
     
-    %% 回饋流
+    %% Feedback Flow
     SqlNode --> ReplyNode
-    ReplyNode -->|7. 發送回覆 (Reply Token)| LineApiNode
-    LineApiNode -->|8. 將記帳結果送回手機| UserNode
+    ReplyNode -->|"7. Send Reply (Reply Token)"| LineApiNode
+    LineApiNode -->|"8. Send Log Result Back to Phone"| UserNode
 
-    %% 看板流 (獨立)
-    UserNode -->|9. 查看財務分析| StreamlitNode
-    StreamlitNode == >|10. 讀取即時數據| TiDbNode
+    %% Dashboard Flow (Independent)
+    UserNode -->|"9. View Financial Analysis"| StreamlitNode
+    StreamlitNode ==>|"10. Read Real-time Data"| TiDbNode
 
-    %% 標註關鍵技術
+    %% Highlight Key Technologies
     linkStyle 2,3 stroke:#4a148c,stroke-width:2px;
     linkStyle 5,6 stroke:#311b92,stroke-width:2px;
-
+```
 
 ### 🎥 Demonstration
-*(💡 Note: Add your screenshots or a GIF here to prove it works!)*
 
 | 1. Zero-Friction Input (LINE Bot) | 2. Real-Time Analytics (Streamlit) |
 | :---: | :---: |
-| <img src="https://via.placeholder.com/250x400.png?text=Add+LINE+Screenshot+Here" width="250"/> | <img src="https://via.placeholder.com/400x300.png?text=Add+Dashboard+Screenshot+Here" width="400"/> |
+| <img src="https://drive.google.com/file/d/124W6hW3VQp4BhIEJcl2HOlOQ9qq4Uk5X/view?usp=drive_link" width="250"/> | <img src="https://drive.google.com/file/d/1rH45FhsLyyV5imf_DfflUAXDLDgA-ZZ8/view?usp=drive_link" width="400"/> |
 
 **How it solves the problem:** The user simply types naturally. The AI Agent intercepts the text, structures it, logs it into the cloud, and the Streamlit dashboard instantly updates the budget burn rate and expense charts—completely eliminating traditional UI friction.
 
