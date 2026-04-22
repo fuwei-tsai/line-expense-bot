@@ -114,7 +114,7 @@ graph TD;
 
 | 1. Zero-Friction Input (LINE Bot) | 2. Real-Time Analytics (Streamlit) |
 | :---: | :---: |
-| <img src="https://drive.google.com/file/d/124W6hW3VQp4BhIEJcl2HOlOQ9qq4Uk5X/view?usp=drive_link" width="250"/> | <img src="https://drive.google.com/file/d/1rH45FhsLyyV5imf_DfflUAXDLDgA-ZZ8/view?usp=drive_link" width="400"/> |
+| <img src="https://github.com/user-attachments/assets/66e3717a-0fd8-4ad7-8527-a0f7c2878295" width="475"/> | <img src="https://github.com/user-attachments/assets/8c67afe8-fa6c-4b13-90f4-43086e029607" width="475"/> |
 
 **How it solves the problem:** The user simply types naturally. The AI Agent intercepts the text, structures it, logs it into the cloud, and the Streamlit dashboard instantly updates the budget burn rate and expense charts—completely eliminating traditional UI friction.
 
