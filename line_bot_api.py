@@ -10,7 +10,7 @@ import datetime
 
 app = Flask(__name__)
 
-# 1. Set environment variables
+# 1. setting environment variables
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
 LINE_CHANNEL_SECRET = os.environ.get('LINE_CHANNEL_SECRET')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -20,7 +20,7 @@ DB_USER = os.environ.get('DB_USER')
 DB_PASSWORD = os.environ.get('DB_PASSWORD')
 DB_NAME = os.environ.get('DB_NAME')
 
-# Initialize LINE Bot API and Gemini API
+# init LINE Bot API and Gemini API
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
@@ -29,88 +29,88 @@ def parse_expense_with_gemini(user_text):
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         target_model = "models/gemini-flash-lite-latest"
-        print(f"Debug: target model -> {target_model}")
+        print(f"Debug: decide model-> {target_model}")
 
         model = genai.GenerativeModel(target_model)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         
         prompt = f"""
-        Today's date is {today_str}. Please convert the user's input into JSON format.
+        今天的日期是 {today_str}。請將記帳內容轉換為 JSON。
         
         [Rules]
-        1. Determine the category:
-           - If it involves earning money, salary, or investment profits, categorize as "Income".
-           - If it detects "exchange" or "currency conversion", categorize as "Transfer".
-           - 💡 [Crucial Addition] If it involves fixed living expenses like rent, water, electricity, gas, telecom, internet, or subscriptions (Netflix/Spotify), the category MUST be "Living".
-           - Otherwise, accurately categorize as "Food", "Shopping", "Transport", "Investment", or "Entertainment".
-        2. Determine the intent: new record = "record", modify = "update", delete = "delete", currency exchange = "exchange".
-        3. If intent is "update", you must extract the "transaction_id" specified by the user, along with the values to be modified.
-        4. If intent is "delete", you must extract the "transaction_id" specified by the user.
-        5. Strictly prohibit using English column names as values.
+            1. Determine the category:
+            - If it involves earning money, salary, or investment profits, categorize as "Income".
+            - If it detects "exchange" or "currency conversion", categorize as "Transfer".
+            - 💡 [Crucial Addition] If it involves fixed living expenses like rent, water, electricity, gas, telecom, internet, or subscriptions (Netflix/Spotify), the category MUST be "Living".
+            - Otherwise, accurately categorize as "Food", "Shopping", "Transport", "Investment", or "Entertainment".
+            2. Determine the intent: new record = "record", modify = "update", delete = "delete", currency exchange = "exchange".
+            3. If intent is "update", you must extract the "transaction_id" specified by the user, along with the values to be modified.
+            4. If intent is "delete", you must extract the "transaction_id" specified by the user.
+            5. Strictly prohibit using English column names as values.
 
-        [Currency Exchange Rules]
-        - If the user says "Convert Currency A to Currency B", set intent to "exchange".
-        - The JSON must include:
-            1. from_currency, from_amount (negative value)
-            2. to_currency, to_amount (positive value)
-            3. item_description fixed as "Currency Exchange"
-            4. category for both must be "Transfer" (to avoid impacting pure expense statistics)
+            [Currency Exchange Rules]
+            - If the user says "Convert Currency A to Currency B", set intent to "exchange".
+            - The JSON must include:
+                1. from_currency, from_amount (negative value)
+                2. to_currency, to_amount (positive value)
+                3. item_description fixed as "Currency Exchange"
+                4. category for both must be "Transfer" (to avoid impacting pure expense statistics)
 
-        [Example 1: Record]
-        Input: "Dinner 25 CAD today"
-        Output: {{
-            "intent": "record",
-            "transaction_date": "{today_str}",
-            "item_description": "Dinner",
-            "category": "Food",
-            "amount_original": 25,
-            "currency": "CAD"
-        }}
+            [Example 1: Record]
+            Input: "Dinner 25 CAD today"
+            Output: {{
+                "intent": "record",
+                "transaction_date": "{today_str}",
+                "item_description": "Dinner",
+                "category": "Food",
+                "amount_original": 25,
+                "currency": "CAD"
+            }}
 
-        [Example 2: Update]
-        Input: "Change the amount of ID 041801 to 20 CAD"
-        Output: {{
-            "intent": "update",
-            "transaction_id": "041801",  
-            "amount_original": 20,
-            "currency": "CAD"
-        }}
+            [Example 2: Update]
+            Input: "Change the amount of ID 041801 to 20 CAD"
+            Output: {{
+                "intent": "update",
+                "transaction_id": "041801",  
+                "amount_original": 20,
+                "currency": "CAD"
+            }}
 
-        [Example 3: Delete]
-        Input: "Delete record number 5"
-        Output: {{
-            "intent": "delete",
-            "transaction_id": "5"
-        }}
+            [Example 3: Delete]
+            Input: "Delete record number 5"
+            Output: {{
+                "intent": "delete",
+                "transaction_id": "5"
+            }}
 
-        [Example 4: Income]
-        Input: "Stock income 10000 TWD"
-        Output: {{
-            "intent": "record",
-            "transaction_date": "{today_str}",
-            "item_description": "Stock Income",
-            "category": "Income",
-            "amount_original": 10000,
-            "currency": "TWD"
-        }}
+            [Example 4: Income]
+            Input: "Stock income 10000 TWD"
+            Output: {{
+                "intent": "record",
+                "transaction_date": "{today_str}",
+                "item_description": "Stock Income",
+                "category": "Income",
+                "amount_original": 10000,
+                "currency": "TWD"
+            }}
 
-        [Example 5: Exchange]
-        Input: "Convert 100 TWD to 4 CAD"
-        Output: {{
-            "intent": "exchange",
-            "transaction_date": "{today_str}",
-            "from_currency": "TWD",
-            "from_amount": 100,
-            "to_currency": "CAD",
-            "to_amount": 4
-        }}
+            [Example 5: Exchange]
+            Input: "Convert 100 TWD to 4 CAD"
+            Output: {{
+                "intent": "exchange",
+                "transaction_date": "{today_str}",
+                "from_currency": "TWD",
+                "from_amount": 100,
+                "to_currency": "CAD",
+                "to_amount": 4
+            }}
 
-        User Input: {user_text}
-        """
+            User Input: {user_text}
+            """
         
         response = model.generate_content(prompt)
         clean_text = response.text.replace('```json', '').replace('```', '').strip()
-        print(f"Debug: analyzed text -> {clean_text}")
+        print(f"Debug: analyzed text-> {clean_text}")
         return json.loads(clean_text)
 
     except Exception as e:
@@ -118,14 +118,14 @@ def parse_expense_with_gemini(user_text):
         return None
     
 
-# Auto-generate display_id based on date and existing records
+# auto-generate display_id based on date and existing records
 def generate_display_id(cursor, date_str):
     try:
         mmdd = date_str[5:7] + date_str[8:10] 
     except: 
         mmdd = "0000"
         
-    # Search for existing display_id with the same date prefix to determine the next sequence number
+    # search for existing display_id with same date prefix to determine next sequence number
     cursor.execute("SELECT display_id FROM daily_expenses WHERE display_id LIKE %s ORDER BY display_id DESC LIMIT 1", (f"{mmdd}%",))
     result = cursor.fetchone()
     
@@ -141,13 +141,13 @@ def generate_display_id(cursor, date_str):
     return f"{mmdd}{new_seq:02d}"
     
 
-# 3. MySQL writing logic for record, update, and exchange
+# 3. MySQL writing logic for both record and update (and exchange)
 def process_database(data):
     try:
         intent = data.get('intent', 'record')
         
         if str(data.get('transaction_date')) == 'transaction_date' or str(data.get('item_description')) == 'item_description':
-            return {"status": "error", "message": "AI incorrectly formatted the date or item description. Please try again."}
+            return {"status": "error", "message": "AI wrong formatted the date or item description. Please try again."}
 
         connection = pymysql.connect(
             host=DB_HOST, port=4000, user=DB_USER, password=DB_PASSWORD, database=DB_NAME,
@@ -161,7 +161,7 @@ def process_database(data):
                 currency = data.get('currency', 'CAD')
                 amount = float(data.get('amount_original', 0))
                 
-                # Z-score outlier detection for anomaly warning (excludes Income and Transfer)
+                # Z-score outlier detection for anomaly warning (only for non-income and non-transfer categories)
                 anomaly_warning = ""
                 if category not in ['Income', 'Transfer', '收入', '轉帳']:
                     cursor.execute("""
@@ -176,9 +176,9 @@ def process_database(data):
                         std_amt = float(stat['std_amt'])
                         
                         if amount > (avg_amt + 2 * std_amt):
-                            anomaly_warning = f"\n🚨 [Anomaly Alert] This expense is significantly higher than your typical spending in '{category}' ({avg_amt:.0f} {currency}). Please be mindful of your budget!"
+                            anomaly_warning = f"\n🚨 【Anomaly Alert】this expense is significantly higher than your typical spending in 「{category}」 ({avg_amt:.0f} {currency}), please be mindful of your budget!"
 
-                # Insert new record into MySQL
+                # insert new record into MySQL
                 sql = "INSERT INTO daily_expenses (transaction_date, item_description, category, amount_original, currency, amount_base, display_id) VALUES (%s, %s, %s, %s, %s, %s, %s)"
                 val = (data.get('transaction_date'), data.get('item_description'), category, amount, currency, amount, new_disp_id)
                 cursor.execute(sql, val)
@@ -188,7 +188,7 @@ def process_database(data):
             
             elif intent == 'update':
                 trans_id = str(data.get('transaction_id')) 
-                if not trans_id: return {"status": "error", "message": "Cannot identify the transaction ID to update. Please provide a valid ID."}
+                if not trans_id: return {"status": "error", "message": "cannot identify the transaction ID to update. Please provide a valid ID."}
                 
                 updates = []
                 vals = []
@@ -230,10 +230,10 @@ def process_database(data):
                 sql = "INSERT INTO daily_expenses (transaction_date, item_description, category, amount_original, currency, amount_base, display_id) VALUES (%s, %s, %s, %s, %s, %s, %s)"
                 
                 id_1 = generate_display_id(cursor, date)
-                cursor.execute(sql, (date, "Exchange (Out)", "Transfer", -abs(from_amt), from_cur, -abs(from_amt), id_1))
+                cursor.execute(sql, (date, "exchange (out)", "transfer", -abs(from_amt), from_cur, -abs(from_amt), id_1))
                 
                 id_2 = generate_display_id(cursor, date)
-                cursor.execute(sql, (date, "Exchange (In)", "Transfer", abs(to_amt), to_cur, abs(to_amt), id_2))
+                cursor.execute(sql, (date, "exchange (in)", "transfer", abs(to_amt), to_cur, abs(to_amt), id_2))
                 
                 connection.commit()
                 return {"status": "success", "action": "exchange", "from_info": f"-{abs(from_amt)} {from_cur}", "to_info": f"+{abs(to_amt)} {to_cur}"}
@@ -266,7 +266,7 @@ def query_expenses_from_mysql(time_frame):
                     GROUP BY currency
                 """
                 cursor.execute(sql, (today.year, today.month))
-                time_label = "Current Month"
+                time_label = "Current Month 本月"
             elif time_frame == 'this_week':
                 sql = """
                     SELECT currency, SUM(amount_original) as total_amount 
@@ -275,7 +275,7 @@ def query_expenses_from_mysql(time_frame):
                     GROUP BY currency
                 """
                 cursor.execute(sql, (today,))
-                time_label = "Current Week"
+                time_label = "Current Week 本週"
             else: 
                 sql = """
                     SELECT currency, SUM(amount_original) as total_amount 
@@ -284,14 +284,14 @@ def query_expenses_from_mysql(time_frame):
                     GROUP BY currency
                 """
                 cursor.execute(sql, (today,))
-                time_label = "Today"
+                time_label = "Today 今天"
                 
             results = cursor.fetchall()
             
         connection.close()
         return time_label, results
     except Exception as e:
-        print(f"Failed to query: {e}")
+        print(f"查詢失敗 Failed to query: {e}")
         return None, None
 
 
@@ -308,7 +308,7 @@ def delete_mysql_record_by_id(record_id):
             connection.commit()
             return cursor.rowcount > 0 
     except Exception as e:
-        print(f"Failed to delete: {e}")
+        print(f"刪除失敗 Failed to delete: {e}")
         return False
     finally:
         if 'connection' in locals() and connection.open:
@@ -325,12 +325,12 @@ def callback():
         abort(400)
     return 'OK'
 
-# 7. LINE response logic
+# 7. Line response logic
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_text = event.message.text
     parsed_data = parse_expense_with_gemini(user_text)
-    reply_text = "❌ The system is currently busy or unable to parse the input. Please try again later."
+    reply_text = "❌ System is currently busy or unable to parse the input. Please try again later. 請稍後再試"
     
     if parsed_data:
         intent = parsed_data.get('intent')
@@ -338,21 +338,61 @@ def handle_message(event):
         if intent == 'query':
             time_label, results = query_expenses_from_mysql(parsed_data.get('time_frame', 'today'))
             if results:
-                lines = [f"📊 [Total Expenses: {time_label}]"]
+                lines = [f"📊 【{time_label}花費總計 Total Expenses】"]
                 for row in results:
                     if row.get('total_amount'):
                         lines.append(f"💰 {row['currency']} : {float(row['total_amount']):g}")
-                reply_text = "\n".join(lines) if len(lines) > 1 else f"📊 No records found for {time_label}."
+                reply_text = "\n".join(lines) if len(lines) > 1 else f"📊 【{time_label}】目前無紀錄 No record。"
             else: 
-                reply_text = f"📊 No records found for {time_label}."
+                reply_text = f"📊 【{time_label}】目前無紀錄 No record。"
                 
         elif intent in ['record', 'update', 'exchange']: 
             db_result = process_database(parsed_data) 
             
             if db_result.get("status") == "success":
                 if db_result["action"] == "insert":
-                    is_income = parsed_data.get('category') in ["Income", "收入"]
+                    is_income = parsed_data.get('category') == "收入"
                     sign = "+" if is_income else "-"
                     reply_text = (
-                        f"✅ Entry Successful!\n"
-                        f"ID: {db_result['id']}\
+                        f"✅ 記帳成功 Success！\n"
+                        f"編號 ID：{db_result['id']}\n"
+                        f"日期 Date：{parsed_data.get('transaction_date')}\n"
+                        f"品項 Item：{parsed_data.get('item_description')}\n"
+                        f"分類 Category：{parsed_data.get('category')}\n"
+                        f"金額 Amount：{sign}{parsed_data.get('amount_original')} {parsed_data.get('currency')}"
+                        f"{db_result.get('warning', '')}" 
+                    )
+
+                elif db_result["action"] == "update":
+                    rec = db_result["id"]
+                    is_income = rec.get('category') == "收入"
+                    sign = "+" if is_income else "-"
+                    reply_text = (
+                        f"✏️ 修改成功 Revise Successful！\n"
+                        f"編號 ID：{rec.get('id')}\n"
+                        f"日期 Date：{rec.get('transaction_date')}\n"
+                        f"品項 Item：{rec.get('item_description')}\n"
+                        f"分類 Category：{rec.get('category')}\n"
+                        f"金額 Amount：{sign}{rec.get('amount_original')} {rec.get('currency')}"
+                    )
+                
+                elif db_result["action"] == "exchange":
+                    
+                    reply_text = f"💱 換匯成功 Exchange Successful！\n減少：{db_result['from_info']}\n新增：{db_result['to_info']}\n已同步更新兩端看板。"
+            else:
+                reply_text = f"⚠️ 處理失敗 Failed：{db_result.get('message')}"
+
+        elif intent == 'delete':
+            trans_id = parsed_data.get('transaction_id')
+            if trans_id:
+                if delete_mysql_record_by_id(trans_id):
+                    reply_text = f"🗑️ 刪除成功 Delete Successful！已移除編號 {trans_id} 紀錄。"
+                else: 
+                    reply_text = f"⚠️ 刪除失敗，找不到編號 {trans_id} 的紀錄 Delete Failed。"
+            else:
+                reply_text = "⚠️ 刪除失敗，AI 無法辨識要刪除的編號。 failed to identify transaction ID to delete. Please provide a valid ID."
+                
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+
+if __name__ == "__main__":
+    app.run()
