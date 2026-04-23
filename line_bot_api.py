@@ -364,12 +364,12 @@ def handle_message(event):
                     )
 
                 elif db_result["action"] == "update":
-                    rec = db_result["id"]
+                    rec = db_result["record"]
                     is_income = rec.get('category') == "收入"
                     sign = "+" if is_income else "-"
                     reply_text = (
                         f"✏️ 修改成功 Revise Successful！\n"
-                        f"編號 ID：{rec.get('id')}\n"
+                        f"編號 ID：{rec.get('display_id')}\n"
                         f"日期 Date：{rec.get('transaction_date')}\n"
                         f"品項 Item：{rec.get('item_description')}\n"
                         f"分類 Category：{rec.get('category')}\n"
