@@ -157,17 +157,24 @@ def process_database(data):
         with connection.cursor() as cursor:
             if intent == 'record':
                 new_disp_id = generate_display_id(cursor, data.get('transaction_date'))
-                category = data.get('category')
+                raw_cat = data.get('category')
+                normalize_map = {
+                    "Food": "飲食", "Shopping": "購物", "Transport": "交通", 
+                    "Living": "生活", "Entertainment": "娛樂", "Investment": "投資",
+                    "Income": "收入", "Transfer": "轉帳"
+                }
+                category = normalize_map.get(raw_cat, raw_cat) 
+                
                 currency = data.get('currency', 'CAD')
                 amount = float(data.get('amount_original', 0))
 
-                # 💡 Defense Mechanism: Large Amount Interception
+                # Large Amount Interception
                 if amount > 9999999:
                     return {"status": "error", "message": "The amount entered is too large (exceeds system limits). Please verify if there are extra zeros."}
 
                 anomaly_warning = ""
                 # Exclude income and transfers from triggering expense warnings
-                if category not in ['Income', 'Transfer', '收入', '轉帳']:
+                if category not in ['Income', 'Transfer', '收入', '轉帳', 'Investment', '投資']:
                     
                     #  Single Category Anomaly (Category Z-score)
                     cursor.execute("""
@@ -464,7 +471,6 @@ def handle_message(event):
                     reply_text = f"⚠️ 刪除失敗，找不到編號 {trans_id} 的紀錄 Delete Failed。"
             else:
                 reply_text = "⚠️ 刪除失敗，AI 無法辨識要刪除的編號。 Failed to identify transaction ID."
-                
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
 if __name__ == "__main__":
