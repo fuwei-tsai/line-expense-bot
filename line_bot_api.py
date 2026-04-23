@@ -349,7 +349,7 @@ def delete_mysql_record_by_id(record_id):
         )
         with connection.cursor() as cursor:
             sql = "DELETE FROM daily_expenses WHERE display_id = %s OR id = %s"
-            cursor.execute(sql, (record_id,))
+            cursor.execute(sql, (record_id, record_id))
             connection.commit()
             return cursor.rowcount > 0 
     except Exception as e:
