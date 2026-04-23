@@ -160,24 +160,69 @@ def process_database(data):
                 category = data.get('category')
                 currency = data.get('currency', 'CAD')
                 amount = float(data.get('amount_original', 0))
-                
-                # Z-score outlier detection for anomaly warning (only for non-income and non-transfer categories)
+
+                # 💡 Defense Mechanism: Large Amount Interception
+                if amount > 9999999:
+                    return {"status": "error", "message": "The amount entered is too large (exceeds system limits). Please verify if there are extra zeros."}
+
                 anomaly_warning = ""
+                # Exclude income and transfers from triggering expense warnings
                 if category not in ['Income', 'Transfer', '收入', '轉帳']:
+                    
+                    #  Single Category Anomaly (Category Z-score)
                     cursor.execute("""
                         SELECT AVG(amount_original) as avg_amt, STDDEV(amount_original) as std_amt, COUNT(*) as cnt
                         FROM daily_expenses 
                         WHERE category = %s AND currency = %s AND amount_original > 0
                     """, (category, currency))
-                    stat = cursor.fetchone()
+                    cat_stat = cursor.fetchone()
                     
-                    if stat and stat['cnt'] >= 5 and stat['std_amt']:
-                        avg_amt = float(stat['avg_amt'])
-                        std_amt = float(stat['std_amt'])
+                    category_alert = False
+                    if cat_stat and cat_stat['cnt'] >= 5 and cat_stat['std_amt']:
+                        cat_avg = float(cat_stat['avg_amt'])
+                        cat_std = float(cat_stat['std_amt'])
                         
-                        if amount > (avg_amt + 2 * std_amt):
-                            anomaly_warning = f"\n🚨 【Anomaly Alert】this expense is significantly higher than your typical spending in 「{category}」 ({avg_amt:.0f} {currency}), please be mindful of your budget!"
+                        # Threshold: Greater than Average + 2 Standard Deviations
+                        if amount > (cat_avg + 2 * cat_std):
+                            category_alert = True
+                            anomaly_warning += f"\n🚨 [Category Alert] This is significantly higher than your typical '{category}' spending ({cat_avg:.0f} {currency})."
 
+                    # Monthly Burn Rate Anomaly (Monthly Z-score)
+                    # Get the total expenses for the current month (including this new entry)
+                    today = datetime.date.today()
+                    cursor.execute("""
+                        SELECT SUM(amount_original) as current_month_total
+                        FROM daily_expenses 
+                        WHERE YEAR(transaction_date) = %s AND MONTH(transaction_date) = %s 
+                        AND currency = %s AND category NOT IN ('Income', 'Transfer', '收入', '轉帳')
+                    """, (today.year, today.month, currency))
+                    current_month_data = cursor.fetchone()
+                    current_month_total = float(current_month_data['current_month_total'] or 0) + amount
+
+                    # Get the total expenses for past months to calculate monthly avg and std
+                    cursor.execute("""
+                        SELECT SUM(amount_original) as monthly_total
+                        FROM daily_expenses 
+                        WHERE currency = %s AND category NOT IN ('Income', 'Transfer', '收入', '轉帳')
+                        GROUP BY YEAR(transaction_date), MONTH(transaction_date)
+                    """, (currency,))
+                    historical_months = cursor.fetchall()
+                    
+                    if historical_months and len(historical_months) >= 2: # Requires at least 2 months of historical data
+                        monthly_totals = [float(row['monthly_total']) for row in historical_months]
+                        # Calculate mean and variance in Python memory
+                        n = len(monthly_totals)
+                        month_avg = sum(monthly_totals) / n
+                        variance = sum([((x - month_avg) ** 2) for x in monthly_totals]) / n
+                        month_std = variance ** 0.5
+                        
+                        # Threshold: Current month total exceeds (Monthly Average + 1.5 Standard Deviations)
+                        if current_month_total > (month_avg + 1.5 * month_std):
+                            if category_alert:
+                                anomaly_warning += f"\n⚠️ [Monthly Alert] Furthermore, your total spending this month ({current_month_total:.0f} {currency}) has severely deviated from your norm!"
+                            else:
+                                anomaly_warning += f"\n⚠️ [Monthly Alert] While this expense is normal, your total spending this month ({current_month_total:.0f} {currency}) is approaching historic highs (Avg: {month_avg:.0f}). Watch your budget!"
+               
                 # insert new record into MySQL
                 sql = "INSERT INTO daily_expenses (transaction_date, item_description, category, amount_original, currency, amount_base, display_id) VALUES (%s, %s, %s, %s, %s, %s, %s)"
                 val = (data.get('transaction_date'), data.get('item_description'), category, amount, currency, amount, new_disp_id)
