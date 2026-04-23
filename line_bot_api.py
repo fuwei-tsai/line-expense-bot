@@ -35,7 +35,7 @@ def parse_expense_with_gemini(user_text):
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         
         prompt = f"""
-        今天的日期是 {today_str}。請將記帳內容轉換為 JSON。
+        今天的日期是 {today_str}。請將記帳內容轉換為 JSON。Today's date is {today_str}. Please convert the accounting entries to JSON.
         
         [Rules]
             1. Determine the category:
@@ -332,6 +332,18 @@ def handle_message(event):
     parsed_data = parse_expense_with_gemini(user_text)
     reply_text = "❌ System is currently busy or unable to parse the input. Please try again later. 請稍後再試"
     
+    
+    cat_mapping = {
+        "飲食": "飲食 Food", "Food": "飲食 Food",
+        "購物": "購物 Shopping", "Shopping": "購物 Shopping",
+        "交通": "交通 Transport", "Transport": "交通 Transport",
+        "生活": "生活 Living", "Living": "生活 Living",
+        "娛樂": "娛樂 Entertainment", "Entertainment": "娛樂 Entertainment",
+        "投資": "投資 Investment", "Investment": "投資 Investment",
+        "收入": "收入 Income", "Income": "收入 Income",
+        "轉帳": "轉帳 Transfer", "Transfer": "轉帳 Transfer"
+    }
+    
     if parsed_data:
         intent = parsed_data.get('intent')
         
@@ -350,38 +362,48 @@ def handle_message(event):
             db_result = process_database(parsed_data) 
             
             if db_result.get("status") == "success":
+                
+                
                 if db_result["action"] == "insert":
-                    is_income = parsed_data.get('category') == "收入"
+                    raw_cat = parsed_data.get('category')
+                    display_cat = cat_mapping.get(raw_cat, raw_cat) 
+                    is_income = raw_cat in ["收入", "Income"]      
                     sign = "+" if is_income else "-"
+                    
                     reply_text = (
                         f"✅ 記帳成功 Success！\n"
                         f"編號 ID：{db_result['id']}\n"
                         f"日期 Date：{parsed_data.get('transaction_date')}\n"
                         f"品項 Item：{parsed_data.get('item_description')}\n"
-                        f"分類 Category：{parsed_data.get('category')}\n"
+                        f"分類 Category：{display_cat}\n"         
                         f"金額 Amount：{sign}{parsed_data.get('amount_original')} {parsed_data.get('currency')}"
                         f"{db_result.get('warning', '')}" 
                     )
 
+                
                 elif db_result["action"] == "update":
                     rec = db_result["record"]
-                    is_income = rec.get('category') == "收入"
+                    raw_cat = rec.get('category')
+                    display_cat = cat_mapping.get(raw_cat, raw_cat) 
+                    is_income = raw_cat in ["收入", "Income"]       
                     sign = "+" if is_income else "-"
+                    
                     reply_text = (
                         f"✏️ 修改成功 Revise Successful！\n"
                         f"編號 ID：{rec.get('display_id')}\n"
                         f"日期 Date：{rec.get('transaction_date')}\n"
                         f"品項 Item：{rec.get('item_description')}\n"
-                        f"分類 Category：{rec.get('category')}\n"
+                        f"分類 Category：{display_cat}\n"         
                         f"金額 Amount：{sign}{rec.get('amount_original')} {rec.get('currency')}"
                     )
                 
+               
                 elif db_result["action"] == "exchange":
-                    
                     reply_text = f"💱 換匯成功 Exchange Successful！\n減少：{db_result['from_info']}\n新增：{db_result['to_info']}\n已同步更新兩端看板。"
             else:
                 reply_text = f"⚠️ 處理失敗 Failed：{db_result.get('message')}"
 
+       
         elif intent == 'delete':
             trans_id = parsed_data.get('transaction_id')
             if trans_id:
