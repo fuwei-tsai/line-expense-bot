@@ -450,14 +450,20 @@ def handle_message(event):
 
        
         elif intent == 'delete':
-            trans_id = parsed_data.get('transaction_id')
-            if trans_id:
+            raw_id = parsed_data.get('transaction_id')
+            
+            if raw_id:
+                trans_id = str(raw_id).strip()
+                
+                if len(trans_id) == 5:
+                    trans_id = "0" + trans_id
+                    
                 if delete_mysql_record_by_id(trans_id):
                     reply_text = f"🗑️ 刪除成功 Delete Successful！已移除編號 {trans_id} 紀錄。"
                 else: 
                     reply_text = f"⚠️ 刪除失敗，找不到編號 {trans_id} 的紀錄 Delete Failed。"
             else:
-                reply_text = "⚠️ 刪除失敗，AI 無法辨識要刪除的編號。 failed to identify transaction ID to delete. Please provide a valid ID."
+                reply_text = "⚠️ 刪除失敗，AI 無法辨識要刪除的編號。 Failed to identify transaction ID."
                 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
