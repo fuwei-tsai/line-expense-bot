@@ -2,10 +2,11 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-import google.generativeai as genai   
+import google.generativeai as genai
 import pymysql
 import json
 import os
+import re
 import datetime
 
 app = Flask(__name__)
@@ -23,6 +24,20 @@ DB_NAME = os.environ.get('DB_NAME')
 # init LINE Bot API and Gemini API
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+DEFAULT_PAYMENT_METHOD = "永豐信用卡 (SinoPac)"
+
+# detect a payment method keyword mentioned anywhere in the raw user message
+def detect_payment_method(text):
+    if re.search(r'\b(bnp)\b', text, re.IGNORECASE):
+        return "BNP Paribas"
+    if re.search(r'\b(revolut|revo|rev)\b', text, re.IGNORECASE):
+        return "Revolut"
+    if re.search(r'(現金|cash)', text, re.IGNORECASE):
+        return "現金/其他 (Cash/Other)"
+    if re.search(r'(永豐|sinopac)', text, re.IGNORECASE):
+        return "永豐信用卡 (SinoPac)"
+    return None
 
 # 2. Gemini function to parse user input into structured data
 def parse_expense_with_gemini(user_text):
@@ -231,8 +246,9 @@ def process_database(data):
                                 anomaly_warning += f"\n⚠️ [Monthly Alert] While this expense is normal, your total spending this month ({current_month_total:.0f} {currency}) is approaching historic highs (Avg: {month_avg:.0f}). Watch your budget!"
                
                 # insert new record into MySQL
-                sql = "INSERT INTO daily_expenses (transaction_date, item_description, category, amount_original, currency, amount_base, display_id) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-                val = (data.get('transaction_date'), data.get('item_description'), category, amount, currency, amount, new_disp_id)
+                payment_method = data.get('payment_method') or DEFAULT_PAYMENT_METHOD
+                sql = "INSERT INTO daily_expenses (transaction_date, item_description, category, amount_original, currency, amount_base, display_id, payment_method) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                val = (data.get('transaction_date'), data.get('item_description'), category, amount, currency, amount, new_disp_id, payment_method)
                 cursor.execute(sql, val)
                 connection.commit()
                 
@@ -259,7 +275,10 @@ def process_database(data):
                 if 'transaction_date' in data:
                     updates.append("transaction_date = %s")
                     vals.append(data['transaction_date'])
-                    
+                if 'payment_method' in data:
+                    updates.append("payment_method = %s")
+                    vals.append(data['payment_method'])
+
                 if not updates: return {"status": "error", "message": "No update content provided."}
                 
                 sql = f"UPDATE daily_expenses SET {', '.join(updates)} WHERE display_id = %s OR id = %s"
@@ -383,8 +402,13 @@ def handle_message(event):
     user_text = event.message.text
     parsed_data = parse_expense_with_gemini(user_text)
     reply_text = "❌ System is currently busy or unable to parse the input. Please try again later. 請稍後再試"
-    
-    
+
+    if parsed_data:
+        detected_payment = detect_payment_method(user_text)
+        if detected_payment:
+            parsed_data['payment_method'] = detected_payment
+
+
     cat_mapping = {
         "飲食": "飲食 Food", "Food": "飲食 Food",
         "購物": "購物 Shopping", "Shopping": "購物 Shopping",
@@ -427,9 +451,10 @@ def handle_message(event):
                         f"編號 ID：{db_result['id']}\n"
                         f"日期 Date：{parsed_data.get('transaction_date')}\n"
                         f"品項 Item：{parsed_data.get('item_description')}\n"
-                        f"分類 Category：{display_cat}\n"         
-                        f"金額 Amount：{sign}{parsed_data.get('amount_original')} {parsed_data.get('currency')}"
-                        f"{db_result.get('warning', '')}" 
+                        f"分類 Category：{display_cat}\n"
+                        f"金額 Amount：{sign}{parsed_data.get('amount_original')} {parsed_data.get('currency')}\n"
+                        f"付款 Payment：{parsed_data.get('payment_method', DEFAULT_PAYMENT_METHOD)}"
+                        f"{db_result.get('warning', '')}"
                     )
 
                 
@@ -445,8 +470,9 @@ def handle_message(event):
                         f"編號 ID：{rec.get('display_id')}\n"
                         f"日期 Date：{rec.get('transaction_date')}\n"
                         f"品項 Item：{rec.get('item_description')}\n"
-                        f"分類 Category：{display_cat}\n"         
-                        f"金額 Amount：{sign}{rec.get('amount_original')} {rec.get('currency')}"
+                        f"分類 Category：{display_cat}\n"
+                        f"金額 Amount：{sign}{rec.get('amount_original')} {rec.get('currency')}\n"
+                        f"付款 Payment：{rec.get('payment_method', DEFAULT_PAYMENT_METHOD)}"
                     )
                 
                
