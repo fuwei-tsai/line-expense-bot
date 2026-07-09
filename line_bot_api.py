@@ -27,17 +27,22 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 DEFAULT_PAYMENT_METHOD = "永豐信用卡 (SinoPac)"
 
-# detect a payment method keyword mentioned anywhere in the raw user message
-def detect_payment_method(text):
-    if re.search(r'\b(bnp)\b', text, re.IGNORECASE):
-        return "BNP Paribas"
-    if re.search(r'\b(revolut|revo|rev)\b', text, re.IGNORECASE):
-        return "Revolut"
-    if re.search(r'(現金|cash)', text, re.IGNORECASE):
-        return "現金/其他 (Cash/Other)"
-    if re.search(r'(永豐|sinopac)', text, re.IGNORECASE):
-        return "永豐信用卡 (SinoPac)"
-    return None
+PAYMENT_METHOD_PATTERNS = [
+    (r'\b(bnp)\b', "BNP Paribas"),
+    (r'\b(revolut|revo|rev)\b', "Revolut"),
+    (r'(現金|cash)', "現金/其他 (Cash/Other)"),
+    (r'(永豐|sinopac)', "永豐信用卡 (SinoPac)"),
+]
+
+# detect a payment method keyword in the raw user message and strip it out,
+# so it doesn't leak into the item description Gemini extracts
+def extract_and_strip_payment_method(text):
+    for pattern, method in PAYMENT_METHOD_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            cleaned = re.sub(pattern, '', text, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+            return method, cleaned
+    return None, text
 
 # 2. Gemini function to parse user input into structured data
 def parse_expense_with_gemini(user_text):
@@ -400,13 +405,12 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_text = event.message.text
-    parsed_data = parse_expense_with_gemini(user_text)
+    detected_payment, text_for_gemini = extract_and_strip_payment_method(user_text)
+    parsed_data = parse_expense_with_gemini(text_for_gemini)
     reply_text = "❌ System is currently busy or unable to parse the input. Please try again later. 請稍後再試"
 
-    if parsed_data:
-        detected_payment = detect_payment_method(user_text)
-        if detected_payment:
-            parsed_data['payment_method'] = detected_payment
+    if parsed_data and detected_payment:
+        parsed_data['payment_method'] = detected_payment
 
 
     cat_mapping = {
